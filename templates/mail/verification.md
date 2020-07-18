@@ -3,7 +3,12 @@
 Hallo **${user}**,  
 zur Verifizierung deines Discord-Accounts musst du den folgenden Befehl an **${bot}** schicken.
 
-`$token ${token}`
+```
+$token
++${token_header}*
++${token_payload}*
++${token_signature}*
+```
 
 Viel Spaß auf unserem Server!
 

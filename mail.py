@@ -1,13 +1,19 @@
+import settings
+import smtplib
+import markdown as md
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import make_msgid
-from helpers import replace_all
-from markdown import markdown
-from settings import MAIL_NAME, MAIL_EMAIL, MAIL_HOST, MAIL_PORT, MAIL_USER, MAIL_PASS
-from smtplib import SMTP
 
-sender = f'{MAIL_NAME} <{MAIL_EMAIL}>'
+sender = f"{settings.mail['name']} <{settings.mail['email']}>"
+
+
+def replace_all(text, d):
+    for key, value in d.items():
+        text = text.replace('${' + key + '}', value)
+
+    return text
 
 
 def verification_mail(receiver, payload):
@@ -22,12 +28,12 @@ def verification_mail(receiver, payload):
         content = replace_all(file.read(), payload)
 
     text = content
-    html = markdown(content)
+    html = md.markdown(content, extensions=['fenced_code'])
 
     message.attach(MIMEText(text, 'plain'))
     message.attach(MIMEText(html, 'html'))
 
-    with SMTP(MAIL_HOST, MAIL_PORT) as server:
+    with smtplib.SMTP(settings.mail['host'], settings.mail['port']) as server:
         server.starttls()
-        server.login(MAIL_USER, MAIL_PASS)
+        server.login(settings.mail['username'], settings.mail['password'])
         server.sendmail(sender, receiver, message.as_string())

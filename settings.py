@@ -4,18 +4,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Discord
-TOKEN = getenv('DISCORD_BOT_TOKEN')
-GUILD = getenv('DISCORD_GUILD_ID')
-ROLE = getenv('DISCORD_ROLE_ID')
+bot_token = getenv('DISCORD_BOT_TOKEN')
 
 # E-Mail
-MAIL_NAME = "Faking"
-MAIL_EMAIL = "noreply@faking.cool"
-
-MAIL_HOST = getenv('SMTP_HOST')
-MAIL_PORT = getenv('SMTP_PORT')
-MAIL_USER = getenv('SMTP_USER')
-MAIL_PASS = getenv('SMTP_PASS')
+mail = {
+    'name': "Faking",
+    'email': "noreply@faking.cool",
+    'host': getenv('SMTP_HOST'),
+    'port': getenv('SMTP_PORT'),
+    'username': getenv('SMTP_USERNAME'),
+    'password': getenv('SMTP_PASSWORD')
+}
 
 # JWT
-SECRET = getenv('SECRET')
+jwt_key = getenv('JWT_SECRET')
