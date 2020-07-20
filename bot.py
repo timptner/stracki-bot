@@ -47,7 +47,7 @@ async def on_message(message):
                 'iat': datetime.utcnow(),
                 'exp': datetime.utcnow() + timedelta(hours=2),
             }
-            token = jwt.encode(payload, settings.jwt_key, algorithm='HS256').decode('utf8').split('.')
+            token = jwt.encode(payload, settings.JWT_KEY, algorithm='HS256').decode('utf8').split('.')
             data = {
                 'token_header': token[0],
                 'token_payload': token[1],
@@ -75,7 +75,7 @@ async def on_message(message):
         if match:
             token = match.group().replace('\n', '').replace(' ', '').replace('*+', '.')[1:-1]
             try:
-                payload = jwt.decode(token, settings.jwt_key, algorithms=['HS256'])
+                payload = jwt.decode(token, settings.JWT_KEY, algorithms=['HS256'])
 
             except jwt.exceptions.DecodeError:
                 await message.channel.send("Der Token ist ungültig.")
@@ -114,4 +114,4 @@ async def on_message(message):
         else:
             await message.channel.send("So funktioniert das nicht! Bitte gib einen echten Token an.")
 
-client.run(settings.bot_token)
+client.run(settings.BOT_TOKEN)

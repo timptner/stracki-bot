@@ -24,7 +24,7 @@ def verification_mail(receiver, payload):
     message['To'] = receiver
     message['Date'] = str(datetime.now())
 
-    with open('templates/mail/verification.md') as file:
+    with open(settings.TEMPLATES_DIR.joinpath('mail', 'verification.md')) as file:
         content = replace_all(file.read(), payload)
 
     text = content

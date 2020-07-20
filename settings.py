@@ -1,10 +1,15 @@
 from os import getenv
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 
+# Files
+BASE_DIR = Path(__file__).resolve().parent
+TEMPLATES_DIR = BASE_DIR.joinpath('templates')
+
 # Discord
-bot_token = getenv('DISCORD_BOT_TOKEN')
+BOT_TOKEN = getenv('DISCORD_BOT_TOKEN')
 
 # E-Mail
 mail = {
@@ -17,4 +22,4 @@ mail = {
 }
 
 # JWT
-jwt_key = getenv('JWT_SECRET')
+JWT_KEY = getenv('JWT_SECRET')
