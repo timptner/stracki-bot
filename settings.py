@@ -1,4 +1,4 @@
-from os import getenv
+import os
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -6,20 +6,20 @@ load_dotenv()
 
 # Files
 BASE_DIR = Path(__file__).resolve().parent
-TEMPLATES_DIR = BASE_DIR.joinpath('templates')
 
 # Discord
-BOT_TOKEN = getenv('DISCORD_BOT_TOKEN')
+BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
+GUILDS = [int(guild) for guild in os.getenv('DISCORD_GUILDS').split(',')]
 
 # E-Mail
 mail = {
     'name': "Faking",
     'email': "noreply@faking.cool",
-    'host': getenv('SMTP_HOST'),
-    'port': getenv('SMTP_PORT'),
-    'username': getenv('SMTP_USERNAME'),
-    'password': getenv('SMTP_PASSWORD')
+    'host': os.getenv('SMTP_HOST'),
+    'port': os.getenv('SMTP_PORT'),
+    'username': os.getenv('SMTP_USERNAME'),
+    'password': os.getenv('SMTP_PASSWORD')
 }
 
 # JWT
-JWT_KEY = getenv('JWT_SECRET')
+JWT_KEY = os.getenv('JWT_SECRET')
