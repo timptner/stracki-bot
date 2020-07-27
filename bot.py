@@ -13,7 +13,7 @@ bot = commands.Bot(command_prefix='$', description="The one and only! Jens f***i
 async def on_ready():
     print(f"Liste aller verbundenen Server. Mit 'x' markierte Server werden beobachtet.")
     for guild in bot.guilds:
-        if guild.id in settings.GUILDS:
+        if guild.id in settings.TRUSTED_GUILDS:
             print(f" [X] {guild.name}")
 
         else:
@@ -22,101 +22,133 @@ async def on_ready():
 
 @bot.check
 async def trusted_server(ctx):
+    # allow private messages
     if ctx.guild is None:
         return True
 
-    if ctx.guild.id in settings.GUILDS:
-        return True
-
-    await ctx.send("Dieser Server liegt nicht auf meinem Campus!")
-    return False
+    # check if server is trusted
+    return ctx.guild.id in settings.TRUSTED_GUILDS
 
 
 @bot.command()
 async def servers(ctx):
+    # return all connected servers
     await ctx.send('\n'.join([guild.name for guild in bot.guilds]))
 
 
 @bot.command()
 @commands.dm_only()
-async def verify(ctx, arg):
-    pattern = re.compile(r'^([a-z]+[0-9]?\.)?[a-z]+[0-9]?@(st\.)?ovgu\.de$')
-    if re.match(pattern, arg.lower()):
-        payload = {
-            'uid': ctx.author.id,
-            'iat': datetime.utcnow(),
-            'exp': datetime.utcnow() + timedelta(hours=2),
-        }
-        jwt_token = jwt.encode(payload, settings.JWT_KEY, algorithm='HS256').decode('utf8').split('.')
-        data = {
-            'token_header': jwt_token[0],
-            'token_payload': jwt_token[1],
-            'token_signature': jwt_token[2],
-            'user': ctx.author.name,
-            'bot': bot.user.name,
-        }
-        verification_mail(arg, data)
-        await ctx.send(f"Ich habe eine E-Mail zur Verifizierung an `{arg.lower()}` geschickt!")
-
-    else:
+async def verify(ctx, email):
+    # validate email address
+    pattern = re.compile(r'([a-z]+[0-9]?\.)?[a-z]+[0-9]?@(st\.)?ovgu\.de')
+    match = re.fullmatch(pattern, email.lower())
+    if match is None:
         await ctx.send("Es sind nur E-Mail Adressen der **OVGU Magdeburg** erlaubt! "
                        "(z. Bsp. `jens.strackeljan@ovgu.de`)")
+        return
+
+    # prepare token
+    payload = {
+        'uid': ctx.author.id,
+        'iat': datetime.utcnow(),
+        'exp': datetime.utcnow() + timedelta(hours=2),
+    }
+    jwt_token = jwt.encode(payload, settings.JWT_KEY, algorithm='HS256').decode('utf8').split('.')
+
+    # prepare verification mail
+    data = {
+        'token_header': jwt_token[0],
+        'token_payload': jwt_token[1],
+        'token_signature': jwt_token[2],
+        'user': ctx.author.name,
+        'bot': bot.user.name,
+    }
+    verification_mail(match.group(0), data)
+
+    # give feedback
+    await ctx.send(f"Ich habe eine E-Mail zur Verifizierung an `{match.group(0).lower()}` geschickt!")
 
 
 @bot.command()
 @commands.dm_only()
-async def token(ctx, arg):
-    pattern = re.compile(r'^(\+[a-z0-9\-_]+\*\n?){3}$', re.IGNORECASE)
-    if re.match(pattern, arg):
-        jwt_token = arg.replace('\n', '').replace(' ', '').replace('*+', '.')[1:-1]
+async def token(ctx, header, payload, signature):
+    # prepare token
+    jwt_token = f'{header}.{payload}.{signature}'
+
+    # decode token
+    try:
+        payload = jwt.decode(jwt_token, settings.JWT_KEY, algorithms=['HS256'])
+
+    # token is broken
+    except jwt.exceptions.DecodeError:
+        await ctx.send("Der Token ist ungültig.")
+        return
+
+    # token is too old
+    except jwt.exceptions.ExpiredSignatureError:
+        await ctx.send("Der Token ist abgelaufen.")
+        return
+
+    # token is from different user
+    if ctx.author.id != payload['uid']:
+        await ctx.send("Der Token ist von einem anderen Benutzer! Zugriff verweigert.")
+        return
+
+    # apply role to user on every guild
+    guilds = []
+    for guild in bot.guilds:
+        # ignore untrusted guilds
+        if guild.id not in settings.TRUSTED_GUILDS:
+            continue
+
+        # check if user is member of guild
+        member = guild.get_member(payload['uid'])
+        if member is None:
+            guilds.append((guild.name, "Kein Mitglied"))
+            continue
+
+        # check if role exists on guild
+        role = discord.utils.get(guild.roles, name='Verifiziert')
+        if role is None:
+            guilds.append((guild.name, "Rolle nicht vorhanden"))
+            await guild.owner.send(f"Die automatische Verifizierung ist fehlgeschlagen. "
+                                   f"Auf deinem Server ({guild.name}) existiert keine Rolle `Verifiziert`!")
+            continue
+
+        # check if member already has role
+        if role in member.roles:
+            guilds.append((guild.name, "Rolle bereits zugewiesen"))
+            continue
+
+        # add role to member
         try:
-            payload = jwt.decode(jwt_token, settings.JWT_KEY, algorithms=['HS256'])
+            await member.add_roles(role)
 
-        except jwt.exceptions.DecodeError:
-            await ctx.send("Der Token ist ungültig.")
-            return
+        except discord.errors.Forbidden:
+            guilds.append((guild.name, "Fehlende Berechtigung"))
+            await guild.owner.send("Test")
+            continue
 
-        except jwt.exceptions.ExpiredSignatureError:
-            await ctx.send("Der Token ist abgelaufen.")
-            return
+        guilds.append((guild.name, "Erfolgreich"))
 
-        if ctx.author.id != payload['uid']:
-            await ctx.send("Dieser Token ist von einem anderen Benutzer! Zugriff verweigert.")
-            return
-
-        user = discord.utils.get(bot.users, id=payload['uid'])
-        guilds_success = ''
-        for guild in bot.guilds:
-            member = guild.get_member(user.id)
-            role = discord.utils.get(guild.roles, name='Verifiziert')
-            if role and member:
-                try:
-                    await member.add_roles(role)
-
-                except discord.errors.Forbidden:
-                    print(f"Fehlende Berechtigung für Server '{guild}'.")
-
-                else:
-                    guilds_success += f"\n - {guild}"
-
-        if guilds_success:
-            response = "Ich habe dir auf den folgenden Servern die Rolle `Verifiziert` zugewiesen."
-            await ctx.send(response + guilds_success)
-
-        else:
-            await ctx.send("Ich konnte dir auf **keinem** Server die Rolle `Verifiziert` zuweisen!")
-
-    else:
-        await ctx.send("So funktioniert das nicht! Bitte gib einen echten Token an.")
+    # give feedback
+    responses = [f"**{guild}** – {message}" for guild, message in guilds]
+    await ctx.send("Ich habe dir auf folgenden Servern versucht die Rolle `Verifiziert` zuzuweisen:\n" +
+                   '\n'.join(responses))
 
 
 @verify.error
 @token.error
 async def handle_error(ctx, error):
+    if settings.DEBUG:
+        print(error)
+
+    # guild messages only allowed as private message
     if isinstance(error, commands.PrivateMessageOnly):
         await ctx.message.delete()
         await ctx.send(f"Dieser Befehl ist nur als private Nachricht erlaubt! <@{ctx.author.id}>")
 
+    # missing arguments
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("Zu wenig Argumente für diesen Befehl!")
 

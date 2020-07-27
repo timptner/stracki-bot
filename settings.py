@@ -4,12 +4,15 @@ from pathlib import Path
 
 load_dotenv()
 
+# Development
+DEBUG = os.getenv('DEBUG')
+
 # Files
 BASE_DIR = Path(__file__).resolve().parent
 
 # Discord
 BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
-GUILDS = [int(guild) for guild in os.getenv('DISCORD_GUILDS').split(',')]
+TRUSTED_GUILDS = [int(guild) for guild in os.getenv('DISCORD_TRUSTED_GUILDS').split(',')]
 
 # E-Mail
 mail = {

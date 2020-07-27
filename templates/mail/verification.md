@@ -5,9 +5,9 @@ zur Verifizierung deines Discord-Accounts musst du den folgenden Befehl an **${b
 
 ```
 $token
-+${token_header}*
-+${token_payload}*
-+${token_signature}*
+${token_header}
+${token_payload}
+${token_signature}
 ```
 
 Viel Spaß auf unserem Server!
