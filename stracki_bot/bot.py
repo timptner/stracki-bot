@@ -1,23 +1,31 @@
 import discord
 import jwt
 import re
-import settings
+
 from datetime import datetime, timedelta
 from discord.ext import commands
-from mail import verification_mail
+
+from .mail import verification_mail
+from .settings import BOT_TOKEN, TRUSTED_GUILDS, JWT_KEY
 
 bot = commands.Bot(command_prefix='$', description="The one and only! Jens f***ing Strackeljahn.")
+
+
+def start():
+    bot.run(BOT_TOKEN)
 
 
 @bot.event
 async def on_ready():
     print(f"Liste aller verbundenen Server. Mit 'x' markierte Server werden beobachtet.")
     for guild in bot.guilds:
-        if guild.id in settings.TRUSTED_GUILDS:
-            print(f" [X] {guild.name}")
+        if guild.id in TRUSTED_GUILDS:
+            print("[X] ", end='')
 
         else:
-            print(f" [ ] {guild.name}")
+            print("[ ] ", end='')
+
+        print(f"{guild.name} ({guild.id})")
 
 
 @bot.check
@@ -27,7 +35,7 @@ async def trusted_server(ctx):
         return True
 
     # check if server is trusted
-    return ctx.guild.id in settings.TRUSTED_GUILDS
+    return ctx.guild.id in TRUSTED_GUILDS
 
 
 @bot.command()
@@ -40,7 +48,7 @@ async def servers(ctx):
 @commands.dm_only()
 async def verify(ctx, email):
     # validate email address
-    pattern = re.compile(r'([a-z]+[0-9]?\.)?[a-z]+[0-9]?@(st\.)?ovgu\.de')
+    pattern = re.compile(r'.*@(st\.)?ovgu\.de')
     match = re.fullmatch(pattern, email.lower())
     if match is None:
         await ctx.send("Es sind nur E-Mail Adressen der **OVGU Magdeburg** erlaubt! "
@@ -53,7 +61,7 @@ async def verify(ctx, email):
         'iat': datetime.utcnow(),
         'exp': datetime.utcnow() + timedelta(hours=2),
     }
-    jwt_token = jwt.encode(payload, settings.JWT_KEY, algorithm='HS256').decode('utf8').split('.')
+    jwt_token = jwt.encode(payload, JWT_KEY, algorithm='HS256').decode('utf8').split('.')
 
     # prepare verification mail
     data = {
@@ -77,7 +85,7 @@ async def token(ctx, header, payload, signature):
 
     # decode token
     try:
-        payload = jwt.decode(jwt_token, settings.JWT_KEY, algorithms=['HS256'])
+        payload = jwt.decode(jwt_token, JWT_KEY, algorithms=['HS256'])
 
     # token is broken
     except jwt.exceptions.DecodeError:
@@ -98,7 +106,7 @@ async def token(ctx, header, payload, signature):
     guilds = []
     for guild in bot.guilds:
         # ignore untrusted guilds
-        if guild.id not in settings.TRUSTED_GUILDS:
+        if guild.id not in TRUSTED_GUILDS:
             continue
 
         # check if user is member of guild
@@ -140,8 +148,7 @@ async def token(ctx, header, payload, signature):
 @verify.error
 @token.error
 async def handle_error(ctx, error):
-    if settings.DEBUG:
-        print(error)
+    print(error)
 
     # guild messages only allowed as private message
     if isinstance(error, commands.PrivateMessageOnly):
@@ -151,5 +158,3 @@ async def handle_error(ctx, error):
     # missing arguments
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("Zu wenig Argumente für diesen Befehl!")
-
-bot.run(settings.BOT_TOKEN)
