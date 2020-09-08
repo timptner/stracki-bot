@@ -39,6 +39,11 @@ async def trusted_server(ctx):
 
 
 @bot.command()
+async def about(ctx):
+    await ctx.send("My creator is Aiven Timptner.")
+
+
+@bot.command()
 async def servers(ctx):
     # return all connected servers
     await ctx.send('\n'.join([guild.name for guild in bot.guilds]))
